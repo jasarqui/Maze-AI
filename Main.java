@@ -14,6 +14,7 @@ public class Main {
 		// set Sokoban as gamePanel
  		final Maze gamePanel = new Maze();
  		frame.setContentPane(gamePanel);
+		frame.setPreferredSize(new Dimension(gamePanel.mapLength() * 50, gamePanel.mapLength() * 50));
 
 		// Game constants
 		final boolean ONGOING = false;

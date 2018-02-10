@@ -1,4 +1,5 @@
 import javax.swing.JPanel;
+import javax.swing.JOptionPane;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Color;
@@ -8,19 +9,19 @@ import java.io.File;
 import java.util.Scanner;
 import java.util.Random;
 
-public class Sokoban extends JPanel {
+public class Maze extends JPanel {
 	// Keeper Graphic Details
 	private int xPos;
 	private int yPos;
 	private int size;
+	private int length;
 
 	// Images
-	private Image box;
-	private Image boxOn;
-	private Image floor;
-	private Image floorOn;
+	private Image goal;
+	private Image visitedTile;
+	private Image unvisitedTile;
+	private Image player;
 	private Image wall;
-	private Image keeper;
 
 	// Game
 	private Random random = new Random();
@@ -46,127 +47,133 @@ public class Sokoban extends JPanel {
 
 		// load puzzle
 		Scanner scan = new Scanner(System.in);
+		System.out.println("N: ");
+		this.length = scan.nextInt();
 		
-		String[] generatedPuzzle = new String[10];
-		int line = 0;
+		String[][] generatedPuzzle = new String[this.length][this.length];
 
         // ------------- put puzzle to array -------------
-    	this.gamePuzzle = new String[10][10];
-        // split per space
-        for(int i = 0; i < 10; i++){
-        	this.gamePuzzle[i] = loadedPuzzle[i].split(" ");
-        }
-
-		// initialize game
-		boolean foundPos = false;
-
-		// position of warehouse keeper
-		for(int i = 0; i < 10; i++){
-			for(int j = 0; j < 10; j++){
-				if (this.gamePuzzle[i][j].equals(KEEPER_OFF_STORAGE)){
-					this.xPos = j;
-					this.yPos = i;
-					foundPos = true;
-					break;
-				} else if (this.gamePuzzle[i][j].equals(KEEPER_ON_STORAGE)){
-					this.xPos = j;
-					this.yPos = i;
-					foundPos = true;
-					break;
-				}
+		// initialize puzzle as unvisited tiles
+    	for (int height = 0; height < this.length; height++){
+			for (int width = 0; width < this.length; width++){
+				generatedPuzzle[height][width] = UNVISITED_TILE;
 			}
-			if (foundPos) break;
 		}
+
+		// compute number of walls
+		// number of walls = (2 * (length^2)) / 5
+		int wallNumber = ((2 * (this.length * this.length)) / 5);
+
+		// place walls
+		int currentWalls = 0;
+		while (currentWalls < wallNumber){
+			// randomize position
+			this.xPos = random.nextInt(this.length);
+			this.yPos = random.nextInt(this.length);
+
+			// if already a wall, continue
+			if (generatedPuzzle[this.yPos][this.xPos].equals(WALL)) {
+				continue;
+			} else {
+				// else change to wall
+				generatedPuzzle[this.yPos][this.xPos] = WALL;
+				currentWalls++;
+			}
+		}
+
+		// place goal
+		while (true) { // only ends with break
+			// random position
+			this.xPos = random.nextInt(this.length);
+			this.yPos = random.nextInt(this.length);
+
+			// if a wall, loop again for a new position
+			if (generatedPuzzle[this.yPos][this.xPos].equals(WALL)) {
+				continue;
+			} else {
+				// else change to goal
+				generatedPuzzle[this.yPos][this.xPos] = GOAL_TILE;
+				break;
+			}
+		}
+
+		// place player
+		while (true) { // only ends with break
+			// random position
+			this.xPos = random.nextInt(this.length);
+			this.yPos = random.nextInt(this.length);
+
+			// if a wall or a goal tile, loop again for a new position
+			if (
+				generatedPuzzle[this.yPos][this.xPos].equals(WALL) ||
+				generatedPuzzle[this.yPos][this.xPos].equals(GOAL_TILE)
+			) {
+				continue;
+			} else {
+				// else change to goal
+				generatedPuzzle[this.yPos][this.xPos] = PLAYER;
+				break;
+			}
+		}
+
+		// put puzzle to class
+		this.gamePuzzle = generatedPuzzle;
 	}
 
 	// Methods
 	public void checkWinCondition() {
-		int storageCount = 0;
+		// true until proven false
+		boolean reachedGoal = true;
 		
-		for(int y = 0; y < 9; y++){
-			for(int x = 0; x < 9; x++){
-				if (this.gamePuzzle[y][x].equals(FLOOR_WITH_STORAGE) ||
-					this.gamePuzzle[y][x].equals(KEEPER_ON_STORAGE)
+		for(int y = 0; y < this.length; y++){
+			for(int x = 0; x < this.length; x++){
+				if (this.gamePuzzle[y][x].equals(GOAL_TILE)
 				) {
-					// counts the number of storages without a box on it
-					storageCount++;
+					// finds the goal tile
+					reachedGoal = false;
+					break;
 				}
 			}
 		}
 
 		// if no more storage space exists without a box, end game
-		if (storageCount == 0){
+		if (reachedGoal){
 			this.state = WIN;
-			System.out.println("You Win!");
+			JOptionPane.showMessageDialog(null, "You Won!", "Maze", JOptionPane.INFORMATION_MESSAGE);
 		}
+	}
+
+	// just returns map length
+	public int mapLength(){
+		return this.length;
 	}
 
 	public void moveLeft() {
 		// set current puzzle states
 		String currentPosition = this.gamePuzzle[this.yPos][this.xPos];
-		String nextPosition = this.gamePuzzle[this.yPos][this.xPos-1];
-		String afterNextPosition;
+		String nextPosition;
 		
-		// having an out of bound position after the next tile
-		// means it has reached an outer wall
+		// having an out of bound position in the next tile
+		// means it has reached the end of map
 		// this prevents errors
-		if (this.xPos-2 < 0){
+		if ((this.xPos - 1) < 0){
 			return;
 		} else {
-			afterNextPosition = this.gamePuzzle[this.yPos][this.xPos-2];
+			nextPosition = this.gamePuzzle[this.yPos][this.xPos-1];
 		}
 		
-		// if next position is a floor
-		if(nextPosition.equals(FLOOR_NO_STORAGE) || nextPosition.equals(FLOOR_WITH_STORAGE)){
-			// change current position to a floor tile
-			if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-			} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-			}
+		// if next position is unvisited
+		if(nextPosition.equals(UNVISITED_TILE) || nextPosition.equals(GOAL_TILE)){
+			// change current position to a visited tile
+			this.gamePuzzle[this.yPos][this.xPos] = VISITED_TILE;
 
-			// change next position to a keeper tile
-			if (nextPosition.equals(FLOOR_NO_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos-1] = KEEPER_OFF_STORAGE;
-			} else if (nextPosition.equals(FLOOR_WITH_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos-1] = KEEPER_ON_STORAGE;
-			}
+			// change next position to a player tile
+			this.gamePuzzle[this.yPos][this.xPos-1] = PLAYER;
 	
 			// update x-position of keeper		
 			this.xPos--;
-		
-		// if next position is a box
-		} else if (nextPosition.equals(BOX_OFF_STORAGE) || nextPosition.equals(BOX_ON_STORAGE)){
-			// if after the next position is a floor
-			if (afterNextPosition.equals(FLOOR_NO_STORAGE) || afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-				// change current position to a floor tile
-				if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-				} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-				}
-
-				// change next position to a keeper tile
-				if (nextPosition.equals(BOX_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos-1] = KEEPER_OFF_STORAGE;
-				} else if (nextPosition.equals(BOX_ON_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos-1] = KEEPER_ON_STORAGE;
-				}
-
-				// change after the next position to a box tile
-				if (afterNextPosition.equals(FLOOR_NO_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos-2] = BOX_OFF_STORAGE;
-				} else if (afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos-2] = BOX_ON_STORAGE;
-				}
-
-				// update x-position of keeper
-				this.xPos--;	
-			}
-
-			// else if after next position is a wall or a box, do nothing
-		}
-		// else if wall or null tile, do nothing
+		} 
+		// else if wall or visited tile, do nothing
 
 		// reload GUI
 		this.repaint();
@@ -177,69 +184,29 @@ public class Sokoban extends JPanel {
 	public void moveRight() {
 		// set current puzzle states
 		String currentPosition = this.gamePuzzle[this.yPos][this.xPos];
-		String nextPosition = this.gamePuzzle[this.yPos][this.xPos+1];
-		String afterNextPosition;
+		String nextPosition;
 		
-		// having an out of bound position after the next tile
-		// means it has reached an outer wall
+		// having an out of bound position in the next tile
+		// means it has reached the end of map
 		// this prevents errors
-		if (this.xPos+2 > 9){
+		if ((this.xPos + 1) == this.length){
 			return;
 		} else {
-			afterNextPosition = this.gamePuzzle[this.yPos][this.xPos+2];
+			nextPosition = this.gamePuzzle[this.yPos][this.xPos+1];
 		}
+		
+		// if next position is unvisited
+		if(nextPosition.equals(UNVISITED_TILE) || nextPosition.equals(GOAL_TILE)){
+			// change current position to a visited tile
+			this.gamePuzzle[this.yPos][this.xPos] = VISITED_TILE;
 
-		// if next position is a floor
-		if(nextPosition.equals(FLOOR_NO_STORAGE) || nextPosition.equals(FLOOR_WITH_STORAGE)){
-			// change current position to a floor tile
-			if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-			} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-			}
-
-			// change next position to a keeper tile
-			if (nextPosition.equals(FLOOR_NO_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos+1] = KEEPER_OFF_STORAGE;
-			} else if (nextPosition.equals(FLOOR_WITH_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos+1] = KEEPER_ON_STORAGE;
-			}
+			// change next position to a player tile
+			this.gamePuzzle[this.yPos][this.xPos+1] = PLAYER;
 	
 			// update x-position of keeper		
 			this.xPos++;
-		
-		// if next position is a box
-		} else if (nextPosition.equals(BOX_OFF_STORAGE) || nextPosition.equals(BOX_ON_STORAGE)){
-			// if after the next position is a floor
-			if (afterNextPosition.equals(FLOOR_NO_STORAGE) || afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-				// change current position to a floor tile
-				if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-				} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-				}
-
-				// change next position to a keeper tile
-				if (nextPosition.equals(BOX_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos+1] = KEEPER_OFF_STORAGE;
-				} else if (nextPosition.equals(BOX_ON_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos+1] = KEEPER_ON_STORAGE;
-				}
-
-				// change after the next position to a box tile
-				if (afterNextPosition.equals(FLOOR_NO_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos+2] = BOX_OFF_STORAGE;
-				} else if (afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos+2] = BOX_ON_STORAGE;
-				}
-
-				// update x-position of keeper
-				this.xPos++;	
-			}
-
-			// else if after next position is a wall or a box, do nothing
-		}
-		// else if wall or null tile, do nothing
+		} 
+		// else if wall or visited tile, do nothing
 
 		// reload GUI
 		this.repaint();
@@ -250,69 +217,29 @@ public class Sokoban extends JPanel {
 	public void moveUp() {
 		// set current puzzle states
 		String currentPosition = this.gamePuzzle[this.yPos][this.xPos];
-		String nextPosition = this.gamePuzzle[this.yPos-1][this.xPos];
-		String afterNextPosition;
+		String nextPosition;
 		
-		// having an out of bound position after the next tile
-		// means it has reached an outer wall
+		// having an out of bound position in the next tile
+		// means it has reached the end of map
 		// this prevents errors
-		if (this.yPos-2 < 0){
+		if ((this.yPos - 1) < 0){
 			return;
 		} else {
-			afterNextPosition = this.gamePuzzle[this.yPos-2][this.xPos];
+			nextPosition = this.gamePuzzle[this.yPos-1][this.xPos];
 		}
-
-		// if next position is a floor
-		if(nextPosition.equals(FLOOR_NO_STORAGE) || nextPosition.equals(FLOOR_WITH_STORAGE)){
-			// change current position to a floor tile
-			if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-			} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-			}
-
-			// change next position to a keeper tile
-			if (nextPosition.equals(FLOOR_NO_STORAGE)){
-				this.gamePuzzle[this.yPos-1][this.xPos] = KEEPER_OFF_STORAGE;
-			} else if (nextPosition.equals(FLOOR_WITH_STORAGE)){
-				this.gamePuzzle[this.yPos-1][this.xPos] = KEEPER_ON_STORAGE;
-			}
-	
-			// update y-position of keeper		
-			this.yPos--;
 		
-		// if next position is a box
-		} else if (nextPosition.equals(BOX_OFF_STORAGE) || nextPosition.equals(BOX_ON_STORAGE)){
-			// if after the next position is a floor
-			if (afterNextPosition.equals(FLOOR_NO_STORAGE) || afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-				// change current position to a floor tile
-				if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-				} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-				}
+		// if next position is unvisited
+		if(nextPosition.equals(UNVISITED_TILE) || nextPosition.equals(GOAL_TILE)){
+			// change current position to a visited tile
+			this.gamePuzzle[this.yPos][this.xPos] = VISITED_TILE;
 
-				// change next position to a keeper tile
-				if (nextPosition.equals(BOX_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos-1][this.xPos] = KEEPER_OFF_STORAGE;
-				} else if (nextPosition.equals(BOX_ON_STORAGE)){
-					this.gamePuzzle[this.yPos-1][this.xPos] = KEEPER_ON_STORAGE;
-				}
-
-				// change after the next position to a box tile
-				if (afterNextPosition.equals(FLOOR_NO_STORAGE)){
-					this.gamePuzzle[this.yPos-2][this.xPos] = BOX_OFF_STORAGE;
-				} else if (afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-					this.gamePuzzle[this.yPos-2][this.xPos] = BOX_ON_STORAGE;
-				}
-
-				// update y-position of keeper
-				this.yPos--;	
-			}
-
-			// else if after next position is a wall or a box, do nothing
-		}
-		// else if wall or null tile, do nothing
+			// change next position to a player tile
+			this.gamePuzzle[this.yPos-1][this.xPos] = PLAYER;
+	
+			// update x-position of keeper		
+			this.yPos--;
+		} 
+		// else if wall or visited tile, do nothing
 
 		// reload GUI
 		this.repaint();
@@ -323,69 +250,29 @@ public class Sokoban extends JPanel {
 	public void moveDown() {
 		// set current puzzle states
 		String currentPosition = this.gamePuzzle[this.yPos][this.xPos];
-		String nextPosition = this.gamePuzzle[this.yPos+1][this.xPos];
-		String afterNextPosition;
+		String nextPosition;
 		
-		// having an out of bound position after the next tile
-		// means it has reached an outer wall
+		// having an out of bound position in the next tile
+		// means it has reached the end of map
 		// this prevents errors
-		if (this.yPos+2 > 9){
+		if ((this.yPos + 1) == this.length){
 			return;
 		} else {
-			afterNextPosition = this.gamePuzzle[this.yPos+2][this.xPos];
+			nextPosition = this.gamePuzzle[this.yPos+1][this.xPos];
 		}
-
-		// if next position is a floor
-		if(nextPosition.equals(FLOOR_NO_STORAGE) || nextPosition.equals(FLOOR_WITH_STORAGE)){
-			// change current position to a floor tile
-			if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-			} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-				this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-			}
-
-			// change next position to a keeper tile
-			if (nextPosition.equals(FLOOR_NO_STORAGE)){
-				this.gamePuzzle[this.yPos+1][this.xPos] = KEEPER_OFF_STORAGE;
-			} else if (nextPosition.equals(FLOOR_WITH_STORAGE)){
-				this.gamePuzzle[this.yPos+1][this.xPos] = KEEPER_ON_STORAGE;
-			}
-	
-			// update y-position of keeper		
-			this.yPos++;
 		
-		// if next position is a box
-		} else if (nextPosition.equals(BOX_OFF_STORAGE) || nextPosition.equals(BOX_ON_STORAGE)){
-			// if after the next position is a floor
-			if (afterNextPosition.equals(FLOOR_NO_STORAGE) || afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-				// change current position to a floor tile
-				if (currentPosition.equals(KEEPER_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_NO_STORAGE;
-				} else if (currentPosition.equals(KEEPER_ON_STORAGE)){
-					this.gamePuzzle[this.yPos][this.xPos] = FLOOR_WITH_STORAGE;
-				}
+		// if next position is unvisited
+		if(nextPosition.equals(UNVISITED_TILE) || nextPosition.equals(GOAL_TILE)){
+			// change current position to a visited tile
+			this.gamePuzzle[this.yPos][this.xPos] = VISITED_TILE;
 
-				// change next position to a keeper tile
-				if (nextPosition.equals(BOX_OFF_STORAGE)){
-					this.gamePuzzle[this.yPos+1][this.xPos] = KEEPER_OFF_STORAGE;
-				} else if (nextPosition.equals(BOX_ON_STORAGE)){
-					this.gamePuzzle[this.yPos+1][this.xPos] = KEEPER_ON_STORAGE;
-				}
-
-				// change after the next position to a box tile
-				if (afterNextPosition.equals(FLOOR_NO_STORAGE)){
-					this.gamePuzzle[this.yPos+2][this.xPos] = BOX_OFF_STORAGE;
-				} else if (afterNextPosition.equals(FLOOR_WITH_STORAGE)){
-					this.gamePuzzle[this.yPos+2][this.xPos] = BOX_ON_STORAGE;
-				}
-
-				// update y-position of keeper
-				this.yPos++;	
-			}
-
-			// else if after next position is a wall or a box, do nothing
-		}
-		// else if wall or null tile, do nothing
+			// change next position to a player tile
+			this.gamePuzzle[this.yPos+1][this.xPos] = PLAYER;
+	
+			// update x-position of keeper		
+			this.yPos++;
+		} 
+		// else if wall or visited tile, do nothing
 
 		// reload GUI
 		this.repaint();
@@ -398,43 +285,37 @@ public class Sokoban extends JPanel {
 		super.paintComponent(g); 
 		try {
 			// loads all images needed
-			box = ImageIO.read(new File("images/box.png"));
-			boxOn = ImageIO.read(new File("images/box_in.png"));
-			floor = ImageIO.read(new File("images/floor.png"));
-			floorOn = ImageIO.read(new File("images/floor_dot.png"));
-			wall = ImageIO.read(new File("images/wall.png"));
-			keeper = ImageIO.read(new File("images/warehouseKeeper.png"));
+			goal = ImageIO.read(new File("images/floor_dot.png"));
+			unvisitedTile = ImageIO.read(new File("images/floor.png"));
+			visitedTile = ImageIO.read(new File("images/leaf.gif"));
+			wall = ImageIO.read(new File("images/wall.jpg"));
+			player = ImageIO.read(new File("images/kara.png"));
 		} catch(Exception e) {
 			System.out.println(e.getMessage());
 		}
 		Graphics2D g2d = (Graphics2D)g;
 
 		// put images per grid
-		for(int y = 0; y < 10; y++){
-			for(int x = 0; x < 10; x++){
+		for(int y = 0; y < this.length; y++){
+			for(int x = 0; x < this.length; x++){
 				switch(this.gamePuzzle[y][x]){
-					case BOX_OFF_STORAGE:
-						g.drawImage(box, (x * 50), (y * 50), 50, 50, null);
+					case UNVISITED_TILE:
+						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
 						break;
-					case BOX_ON_STORAGE:
-						g.drawImage(boxOn, (x * 50), (y * 50), 50, 50, null);
+					case VISITED_TILE:
+						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(visitedTile, (x * 50), (y * 50), 50, 50, null);
 						break;
-					case KEEPER_OFF_STORAGE:
-						g.drawImage(keeper, (x * 50), (y * 50), 50, 50, null);
+					case PLAYER:
+						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(player, (x * 50), (y * 50), 50, 50, null);
 						break;
-					case KEEPER_ON_STORAGE:
-						g.drawImage(keeper, (x * 50), (y * 50), 50, 50, null);
-						break;
-					case FLOOR_NO_STORAGE:
-						g.drawImage(floor, (x * 50), (y * 50), 50, 50, null);
-						break;
-					case FLOOR_WITH_STORAGE:
-						g.drawImage(floorOn, (x * 50), (y * 50), 50, 50, null);
+					case GOAL_TILE:
+						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(goal, (x * 50), (y * 50), 50, 50, null);
 						break;
 					case WALL:
 						g.drawImage(wall, (x * 50), (y * 50), 50, 50, null);
-						break;
-					case NULL_FLOOR:
 						break;
 					default:
 						break;
