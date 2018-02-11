@@ -288,7 +288,7 @@ public class Maze extends JPanel {
 			goal = ImageIO.read(new File("images/floor_dot.png"));
 			unvisitedTile = ImageIO.read(new File("images/floor.png"));
 			visitedTile = ImageIO.read(new File("images/leaf.gif"));
-			wall = ImageIO.read(new File("images/wall.jpg"));
+			wall = ImageIO.read(new File("images/wall.png"));
 			player = ImageIO.read(new File("images/kara.png"));
 		} catch(Exception e) {
 			System.out.println(e.getMessage());
@@ -315,6 +315,7 @@ public class Maze extends JPanel {
 						g.drawImage(goal, (x * 50), (y * 50), 50, 50, null);
 						break;
 					case WALL:
+						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
 						g.drawImage(wall, (x * 50), (y * 50), 50, 50, null);
 						break;
 					default:
