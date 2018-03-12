@@ -29,6 +29,7 @@ public class Maze extends JPanel {
 	private final static boolean WIN = true;
 	private final static boolean ONGOING = false;
 	public boolean state;
+	private AStar checker;
 
 	// Letter Constants
 	private final static String GOAL_TILE = "G";
@@ -46,9 +47,9 @@ public class Maze extends JPanel {
 		this.state = ONGOING;
 
 		// load puzzle
-		Scanner scan = new Scanner(System.in);
-		System.out.println("N: ");
-		this.length = scan.nextInt();
+		while (this.length <= 2) {
+			this.length = Integer.parseInt(JOptionPane.showInputDialog(this, "N (must be greater than 3) "));
+		}
 		
 		String[][] generatedPuzzle = new String[this.length][this.length];
 
@@ -118,6 +119,8 @@ public class Maze extends JPanel {
 
 		// put puzzle to class
 		this.gamePuzzle = generatedPuzzle;
+		checker = new AStar(this.gamePuzzle);
+		checker.solve();
 	}
 
 	// Methods
@@ -146,6 +149,11 @@ public class Maze extends JPanel {
 	// just returns map length
 	public int mapLength(){
 		return this.length;
+	}
+
+	// return map
+	public String[][] getMap() {
+		return this.gamePuzzle;
 	}
 
 	public void moveLeft() {
@@ -300,23 +308,23 @@ public class Maze extends JPanel {
 			for(int x = 0; x < this.length; x++){
 				switch(this.gamePuzzle[y][x]){
 					case UNVISITED_TILE:
-						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(unvisitedTile, (x * 50), 35 + (y * 50), 50, 50, null);
 						break;
 					case VISITED_TILE:
-						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
-						g.drawImage(visitedTile, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(unvisitedTile, (x * 50), 35 + (y * 50), 50, 50, null);
+						g.drawImage(visitedTile, (x * 50), 35 + (y * 50), 50, 50, null);
 						break;
 					case PLAYER:
-						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
-						g.drawImage(player, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(unvisitedTile, (x * 50), 35 + (y * 50), 50, 50, null);
+						g.drawImage(player, (x * 50), 35 + (y * 50), 50, 50, null);
 						break;
 					case GOAL_TILE:
-						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
-						g.drawImage(goal, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(unvisitedTile, (x * 50), 35 + (y * 50), 50, 50, null);
+						g.drawImage(goal, (x * 50), 35 + (y * 50), 50, 50, null);
 						break;
 					case WALL:
-						g.drawImage(unvisitedTile, (x * 50), (y * 50), 50, 50, null);
-						g.drawImage(wall, (x * 50), (y * 50), 50, 50, null);
+						g.drawImage(unvisitedTile, (x * 50), 35 + (y * 50), 50, 50, null);
+						g.drawImage(wall, (x * 50), 35 + (y * 50), 50, 50, null);
 						break;
 					default:
 						break;
